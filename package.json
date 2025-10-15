@@ -1,0 +1,29 @@
+
+{
+  "main": "main.js",
+  "name": "mipa",
+  "version": "1.0.0",
+  "description": "Mi Progreso Académico",
+  "author": "Mauro Salazar",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.mipa.app",
+    "productName": "MiPA",
+    "files": [
+      "study_tracker.html",
+      "main.js",
+      "preload.js"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  }
+}

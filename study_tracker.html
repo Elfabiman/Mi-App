@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Progreso Académico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background 0.5s ease-in-out;
+        }
+        body.plan-active .container {
+            margin-left: 7rem;
+        }
+        .signature {
+            font-family: 'Dancing Script', cursive;
+        }
+        .gradient-bg-menu { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+        .gradient-bg-year-0 { background: linear-gradient(135deg, #f5f7fa 0%, #d4e0f3 100%); }
+        .gradient-bg-year-1 { background: linear-gradient(135deg, #f5f7fa 0%, #cce7e0 100%); }
+        .gradient-bg-year-2 { background: linear-gradient(135deg, #f5f7fa 0%, #f7d4d4 100%); }
+        .gradient-bg-year-3 { background: linear-gradient(135deg, #f5f7fa 0%, #f3e6c3 100%); }
+        .gradient-bg-progress { background: linear-gradient(135deg, #f5f7fa 0%, #dcd9f1 100%); }
+
+        .animated-title {
+            font-weight: 800;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed, #db2777, #f59e0b);
+            background-size: 200% auto;
+            color: #fff;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: text-shine 5s linear infinite;
+        }
+        @keyframes text-shine {
+            to { background-position: 200% center; }
+        }
+        
+        @keyframes avatar-float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .avatar-animated {
+            animation: avatar-float 4s ease-in-out infinite;
+        }
+
+        .modal { transition: opacity 0.25s ease; }
+        .modal-content { transition: transform 0.25s ease; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .main-tab {
+            transition: all 0.3s ease;
+            transform-origin: bottom;
+        }
+        .main-tab-active {
+            color: #4f46e5;
+            transform: scale(1.1) translateY(-5px);
+            background-color: white;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+        }
+        
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+        }
+        .semester-tab-active {
+            background-color: #4f46e5;
+            color: white;
+            animation: pulse-glow 2s infinite;
+            border-color: #4f46e5;
+        }
+        
+        #calendar-toggle-btn { display: none; }
+        body.plan-active #calendar-toggle-btn { display: block; }
+        #calendar-container.open { transform: translateX(0); }
+        #calendar-grid .day.has-event { background-color: #e0e7ff; font-weight: bold; color: #4f46e5; position: relative; }
+        
+        @keyframes toast-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes toast-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        .toast { animation: toast-in 0.5s, toast-out 0.5s 4.5s; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="fixed top-4 right-4 z-50 text-gray-600 signature text-lg">Desarrollado por Mauro Salazar</div>
+    
+    <!-- Assistant Avatar (Top-left) -->
+    <div id="assistant-avatar-container" class="hidden">
+        <div onclick="showRandomQuote()" class="fixed top-8 left-4 z-50 cursor-pointer text-center group w-24">
+            <img src="https://media.muckrack.com/profile/images/459788/juan-ramon-rallo.jpeg.256x256_q100_crop-smart.jpg" alt="Avatar Asistente" class="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover transition-transform transform group-hover:scale-110 avatar-animated mx-auto">
+            <p class="font-bold text-gray-700 mt-2">Asistente</p>
+            <p class="text-xs text-gray-500">Pincha para una frase</p>
+        </div>
+    </div>
+    
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl md:text-5xl animated-title">Mi Progreso Académico</h1>
+        </header>
+
+        <nav id="main-tabs-container" class="mb-6 flex flex-wrap justify-center items-end gap-2 sm:gap-4 p-2 bg-gray-200/50 rounded-xl"></nav>
+        
+        <main id="content-area"></main>
+    </div>
+
+    <!-- Calendar (Sliding Panel) -->
+    <div id="calendar-overlay" class="fixed inset-0 bg-black bg-opacity-25 z-30 hidden" onclick="toggleCalendar()"></div>
+    <button id="calendar-toggle-btn" onclick="toggleCalendar()" class="fixed top-1/2 -translate-y-1/2 right-0 bg-indigo-600 text-white p-2 rounded-l-lg shadow-lg z-40 transition-transform transform hover:bg-indigo-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+    </button>
+    <aside id="calendar-container" class="fixed top-0 right-0 h-full w-72 bg-white/90 backdrop-blur-sm p-4 shadow-lg z-50 transform translate-x-full transition-transform duration-300 ease-in-out">
+        <div id="calendar-header" class="flex justify-between items-center mb-2">
+            <button id="prev-month" class="p-1 rounded-full hover:bg-gray-200">&lt;</button>
+            <h3 id="month-year" class="font-bold text-lg"></h3>
+            <button id="next-month" class="p-1 rounded-full hover:bg-gray-200">&gt;</button>
+        </div>
+        <div id="calendar-weekdays" class="grid grid-cols-7 text-center text-xs text-gray-500 font-semibold mb-2">
+            <div>Lu</div><div>Ma</div><div>Mi</div><div>Ju</div><div>Vi</div><div>Sá</div><div>Do</div>
+        </div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center text-sm"></div>
+    </aside>
+    <div id="calendar-tooltip" class="absolute hidden bg-black text-white text-xs rounded py-1 px-2 z-50 pointer-events-none"></div>
+
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <!-- Modals -->
+    <div id="subject-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0" onclick="closeSubjectModal()">
+        <div class="modal-content bg-white w-full max-w-md rounded-xl shadow-2xl p-6 transform -translate-y-10" onclick="event.stopPropagation()">
+            <h2 id="subject-modal-title" class="text-2xl font-bold mb-6 text-gray-700">Añadir Nueva Asignatura</h2>
+            <form id="subject-form" onsubmit="handleSubjectSubmit(event)">
+                <input type="hidden" id="subject-id"><input type="hidden" id="subject-year-index"><input type="hidden" id="subject-semester-index">
+                <div class="mb-4"><label for="subject-name" class="block text-gray-600 font-medium mb-2">Nombre de la Asignatura</label><input type="text" id="subject-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required></div>
+                <div class="mb-4"><label for="subject-blocks" class="block text-gray-600 font-medium mb-2">Nº de Bloques/Temas</label><input type="number" id="subject-blocks" min="1" max="20" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required></div>
+                <div class="mb-4"><label class="block text-gray-600 font-medium mb-2">Color</label><div id="color-options" class="flex flex-wrap gap-3"></div></div>
+                <div class="mb-6"><label class="block text-gray-600 font-medium mb-2">Icono</label><div id="icon-options" class="grid grid-cols-6 gap-3"></div></div>
+                <div class="flex justify-end space-x-4"><button type="button" onclick="closeSubjectModal()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300">Cancelar</button><button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Guardar</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="details-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0" onclick="closeDetailsModal()">
+        <div class="modal-content bg-white w-full max-w-lg rounded-xl shadow-2xl p-6 transform -translate-y-10" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4"><h2 id="details-modal-title" class="text-2xl font-bold text-gray-700"></h2><button onclick="closeDetailsModal()" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button></div>
+            <div id="details-modal-content" class="max-h-[60vh] overflow-y-auto custom-scrollbar pr-2"></div>
+        </div>
+    </div>
+    <div id="notes-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0" onclick="closeNotesModal()">
+        <div class="modal-content bg-yellow-50 w-full max-w-md rounded-lg shadow-lg p-4 transform -translate-y-10" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-2">
+                <h3 id="notes-modal-title" class="font-bold text-gray-600">Notas Rápidas</h3>
+                <button onclick="closeNotesModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <textarea id="notes-textarea" class="w-full h-48 p-2 border border-yellow-200 rounded-md bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-400" placeholder="Escribe aquí tus notas..."></textarea>
+        </div>
+    </div>
+    <div id="calendar-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0" onclick="closeModal('calendar-modal')">
+        <div class="modal-content bg-white w-full max-w-2xl rounded-xl shadow-2xl p-6 transform -translate-y-10" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold mb-6 text-gray-700">Gestor de Calendario</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold mb-2">Añadir Nuevo Evento</h3>
+                    <form id="event-form" onsubmit="handleEventSubmit(event)" class="space-y-3">
+                        <div><label for="event-title">Título</label><input type="text" id="event-title" class="w-full mt-1 px-3 py-2 border rounded-lg" required></div>
+                        <div><label for="event-date">Fecha</label><input type="date" id="event-date" class="w-full mt-1 px-3 py-2 border rounded-lg" required></div>
+                        <div><label for="event-type">Tipo</label><select id="event-type" class="w-full mt-1 px-3 py-2 border rounded-lg"><option value="examen">Examen</option><option value="evento">Evento</option></select></div>
+                        <button type="submit" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg">Añadir</button>
+                    </form>
+                </div>
+                <div class="space-y-4">
+                    <div><h3 class="font-semibold mb-2">Próximos Eventos</h3><div id="upcoming-events" class="space-y-2 max-h-24 overflow-y-auto custom-scrollbar"></div></div>
+                    <div><h3 class="font-semibold mb-2">Agenda (Eventos Pasados)</h3><div id="past-events" class="space-y-2 max-h-24 overflow-y-auto custom-scrollbar"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="quote-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0" onclick="closeModal('quote-modal')">
+        <div class="modal-content bg-white w-full max-w-md rounded-xl shadow-2xl p-8 transform -translate-y-10 text-center" onclick="event.stopPropagation()">
+            <p id="quote-text" class="text-xl italic text-gray-700 mb-4"></p>
+            <p id="quote-author" class="font-semibold text-indigo-600"></p>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DATA & STATE MANAGEMENT ---
+        let appState = {};
+        let activeTab = 'menu';
+        let activeSemesterForYear = {};
+        let calendarDate = new Date();
+
+        const QUOTES = [
+            { author: "Juan Ramón Rallo", text: "El liberalismo es el respeto irrestricto del proyecto de vida del prójimo." }, { author: "Juan Ramón Rallo", text: "La riqueza no se reparte, se crea." }, { author: "Javier Milei", text: "La justicia social es una aberración, es injusta porque implica un trato desigual frente a la ley." }, { author: "Javier Milei", text: "Entre la mafia y el Estado, me quedo con la mafia. La mafia tiene códigos, la mafia cumple." }, { author: "Jesús Huerta de Soto", text: "El socialismo es un error intelectual." }, { author: "Jesús Huerta de Soto", text: "La coacción y la agresión sistemática son intrínsecamente contrarias a la naturaleza humana." }, { author: "Miguel Anxo Bastos", text: "El Estado es una banda de ladrones a gran escala." }, { author: "Miguel Anxo Bastos", text: "Lo único que sabe hacer el Estado es prohibir, mandar y castigar." },
+        ];
+        const ICONS = { 
+            economy: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`, 
+            math: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="8" y1="12" x2="16" y2="12"></line><line x1="12" y1="8" x2="12" y2="16"></line></svg>`, 
+            history: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`, 
+            chemistry: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.2 2.2c-.3-.4-.8-.4-1.1 0L3.3 9.4c-.3.4-.3.9 0 1.2l7.8 7.8c.3.3.8.3 1.1 0l7.8-7.8c.3-.4.3-.9 0-1.2L11.2 2.2z"></path><path d="M12 10v4"></path><path d="M10 12h4"></path></svg>`, 
+            law: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c2.9 0 5.3 1.9 5.3 4.2s-2.4 4.2-5.3 4.2-5.3-1.9-5.3-4.2S9.1 2.5 12 2.5zM12 11.8c3.8 0 6.7 2.1 6.7 4.7v.2c0 .9-.8 1.7-1.7 1.7h-10c-.9 0-1.7-.8-1.7-1.7v-.2c0-2.6 2.9-4.7 6.7-4.7z"></path><path d="M12 16.5v5.8"></path><path d="M9.4 20h5.2"></path></svg>`, 
+            art: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm-1-12.5c0-.8.7-1.5 1.5-1.5s1.5.7 1.5 1.5c0 .6-.4 1.1-.9 1.4l-3.2 2.1c-.6.4-.9 1-.9 1.7 0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5c0-.6.4-1.1.9-1.4l3.2-2.1c.6-.4.9-1 .9-1.7 0-1.9-1.6-3.5-3.5-3.5S8.5 5.6 8.5 7.5c0 .8.7 1.5 1.5 1.5z"></path></svg>`, 
+            code: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`, 
+            geography: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
+            philosophy: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
+            music: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+            psychology: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5A2.5 2.5 0 0 1 14.5 6 2.5 2.5 0 0 1 17 8.5c0 1.5-1.5 2.5-2.5 2.5S12 10 12 8.5z"/><path d="M7.5 12a2.5 2.5 0 0 1 2.5-2.5A2.5 2.5 0 0 1 12.5 12c-1 0-2.5 1-2.5 2.5S11.5 17 12.5 17a2.5 2.5 0 0 0 2.5-2.5"/><path d="M12 2a10 10 0 0 0-10 10c0 4.4 3.2 8.1 7.4 9.5.3.1.5.3.6.5.2.4.3.8.3 1.2v0a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v0c0-.4.1-.8.3-1.2.1-.2.3-.4.6-.5C18.8 20.1 22 16.4 22 12A10 10 0 0 0 12 2z"/></svg>`,
+            business: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></svg>`,
+            biology: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.9 17.9A9.9 9.9 0 1 1 6.1 6.1a9.9 9.9 0 0 1 11.8 11.8z"/><path d="M12 2v10"/><path d="m12 12 4 4"/></svg>`,
+            computer: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+            language: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>`
+        };
+        const COLORS = [ 
+            { name: 'Red', bg: 'bg-red-500', text: 'text-red-500', ring: 'ring-red-500' }, 
+            { name: 'Orange', bg: 'bg-orange-500', text: 'text-orange-500', ring: 'ring-orange-500' }, 
+            { name: 'Amber', bg: 'bg-amber-500', text: 'text-amber-500', ring: 'ring-amber-500' }, 
+            { name: 'Lime', bg: 'bg-lime-500', text: 'text-lime-500', ring: 'ring-lime-500' },
+            { name: 'Green', bg: 'bg-green-500', text: 'text-green-500', ring: 'ring-green-500' }, 
+            { name: 'Teal', bg: 'bg-teal-500', text: 'text-teal-500', ring: 'ring-teal-500' }, 
+            { name: 'Cyan', bg: 'bg-cyan-500', text: 'text-cyan-500', ring: 'ring-cyan-500' },
+            { name: 'Blue', bg: 'bg-blue-500', text: 'text-blue-500', ring: 'ring-blue-500' }, 
+            { name: 'Indigo', bg: 'bg-indigo-600', text: 'text-indigo-600', ring: 'ring-indigo-600' }, 
+            { name: 'Purple', bg: 'bg-purple-600', text: 'text-purple-600', ring: 'ring-purple-600' }, 
+            { name: 'Pink', bg: 'bg-pink-500', text: 'text-pink-500', ring: 'ring-pink-500' },
+            { name: 'Rose', bg: 'bg-rose-500', text: 'text-rose-500', ring: 'ring-rose-500' }
+        ];
+        const BOOK_ICONS = { 0: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v2H6.5A2.5 2.5 0 0 1 4 16.5v-11A2.5 2.5 0 0 1 6.5 3H20v14H6.5A2.5 2.5 0 0 1 4 14.5v-1z"></path></svg>`, 1: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-700"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`, 2: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>` };
+
+        // --- RENDER & NAVIGATION ---
+        function renderAppLayout() {
+            document.body.className = 'text-gray-800';
+            const tabsContainer = document.getElementById('main-tabs-container');
+            const contentArea = document.getElementById('content-area');
+            
+            let navHTML = `<button onclick="handleTabClick('menu')" class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg ${activeTab === 'menu' ? 'main-tab-active' : 'text-gray-500 hover:text-indigo-600'}">Menú Principal</button>`;
+            
+            if (appState.currentPlan && !appState.viewingArchived) {
+                document.getElementById('assistant-avatar-container').classList.remove('hidden');
+                document.body.classList.add('plan-active');
+                for (let i = 0; i < appState.currentPlan.years; i++) {
+                    navHTML += `<button onclick="handleTabClick('year_${i}')" class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg ${activeTab === `year_${i}` ? 'main-tab-active' : 'text-gray-500 hover:text-indigo-600'}">Año ${i + 1}</button>`;
+                }
+                navHTML += `<button onclick="handleTabClick('progress')" class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg ${activeTab === 'progress' ? 'main-tab-active' : 'text-gray-500 hover:text-indigo-600'}">Avance General</button>`;
+                navHTML += `<button onclick="manualSave()" class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg text-blue-600 hover:bg-blue-100">Guardar</button>`;
+                navHTML += `<button onclick="archivePlan()" class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg text-green-600 hover:bg-green-100">Finalizar Curso</button>`;
+            } else if (appState.viewingArchived) {
+                 document.getElementById('assistant-avatar-container').classList.add('hidden');
+                 document.body.classList.add('plan-active');
+                 navHTML += `<button class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg main-tab-active">${appState.viewingArchived.name}</button>`;
+                 navHTML += `<button onclick="exitArchivedView()" class="main-tab py-3 px-6 text-lg font-semibold rounded-t-lg text-red-500 hover:bg-red-100">Atrás</button>`;
+            }
+            else {
+                document.getElementById('assistant-avatar-container').classList.add('hidden');
+                document.body.classList.remove('plan-active');
+            }
+            tabsContainer.innerHTML = navHTML;
+
+            contentArea.innerHTML = '';
+            let bgClass = 'gradient-bg-menu';
+
+            if(appState.viewingArchived) {
+                renderGeneralProgressView(true);
+                bgClass = 'gradient-bg-progress';
+            } else if (activeTab === 'menu') {
+                renderMainMenu();
+            } else if (appState.currentPlan && activeTab.startsWith('year_')) {
+                const yearIndex = parseInt(activeTab.split('_')[1]);
+                renderYearView(yearIndex);
+                bgClass = `gradient-bg-year-${yearIndex % 4}`;
+            } else if (appState.currentPlan && activeTab === 'progress') {
+                 renderGeneralProgressView();
+                 bgClass = 'gradient-bg-progress';
+            }
+            document.body.classList.add(bgClass);
+            if(appState.currentPlan || appState.viewingArchived) {
+                renderCalendar();
+                checkEventNotifications();
+            }
+        }
+
+        function handleTabClick(tab) { activeTab = tab; renderAppLayout(); }
+        
+        function renderMainMenu() {
+            const contentArea = document.getElementById('content-area');
+            let savedPlansHTML = '';
+            if(appState.savedPlans && appState.savedPlans.length > 0) {
+                savedPlansHTML = `<div class="mt-12"><h3 class="text-2xl font-bold text-gray-700 mb-4">Planes Guardados</h3><div class="space-y-3">`
+                + appState.savedPlans.map((plan, index) => `
+                <div class="flex gap-2 items-center">
+                    <button onclick="loadArchivedPlan(${index})" class="flex-grow text-left bg-white p-4 rounded-lg shadow-md hover:shadow-xl hover:bg-indigo-50 transition font-semibold text-gray-700">${plan.name}</button>
+                    <button onclick="deleteArchivedPlan(${index})" class="p-4 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>`).join('')
+                + `</div></div>`;
+            }
+
+            contentArea.innerHTML = `<div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-8 max-w-2xl mx-auto mt-4 text-center">
+                <h2 class="text-3xl font-bold text-gray-700 mb-2">¡Bienvenido a tu Centro de Control!</h2>
+                <p class="text-gray-600 mb-4">Esta app te ayuda a visualizar tu progreso. <strong>¡Importante!</strong> Cuando tengas un plan activo, pulsa "Guardar" antes de cerrar la página para no perder los cambios.</p>
+                <img src="https://i.gifer.com/A1kt.gif" alt="Estudiante estudiando GIF" class="rounded-lg mx-auto mb-6 w-full max-w-sm">
+                <form id="setup-form" onsubmit="handleSetupSubmit(event)" class="mt-6">
+                    <label for="academic-years" class="block text-lg font-semibold text-gray-700 mb-3">Primer paso: ¿Cuántos años dura tu nuevo curso?</label>
+                    <div class="flex justify-center gap-3"><input type="number" id="academic-years" min="1" max="10" class="w-40 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center text-lg" required placeholder="Ej: 4"><button type="submit" class="px-8 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 text-lg">Crear Plan</button></div>
+                </form>
+                ${savedPlansHTML}
+            </div>`;
+        }
+        
+        // --- PLAN MANAGEMENT ---
+        function handleSetupSubmit(event) {
+            event.preventDefault();
+            const yearsCount = parseInt(document.getElementById('academic-years').value);
+            if (yearsCount > 0) {
+                appState.currentPlan = { 
+                    name: `Plan de ${yearsCount} año(s) (${new Date().toLocaleDateString()})`,
+                    years: yearsCount, 
+                    structure: Array.from({ length: yearsCount }, () => ({ semesters: [ { subjects: [] }, { subjects: [] } ] })),
+                    events: []
+                };
+                activeTab = `year_0`;
+                saveData();
+                renderAppLayout();
+            }
+        }
+
+        function manualSave() {
+            saveData();
+            showToast("¡Progreso guardado!");
+        }
+
+        function archivePlan() {
+            const planName = prompt("Elige un nombre para archivar este curso:", appState.currentPlan.name);
+            if (planName) {
+                appState.currentPlan.name = planName;
+                if(!appState.savedPlans) appState.savedPlans = [];
+                appState.savedPlans.push(appState.currentPlan);
+                appState.currentPlan = null;
+                activeTab = 'menu';
+                activeSemesterForYear = {};
+                saveData();
+                renderAppLayout();
+            }
+        }
+
+        function loadArchivedPlan(index) {
+            // This is viewing, not editing, so we copy it to viewingArchived
+            appState.viewingArchived = appState.savedPlans[index];
+            appState.currentPlan = null; // Ensure no plan is active for editing
+            activeTab = 'progress'; // Go to summary view
+            saveData();
+            renderAppLayout();
+        }
+
+        function exitArchivedView() {
+            appState.viewingArchived = null;
+            activeTab = 'menu';
+            saveData();
+            renderAppLayout();
+        }
+
+        function deleteArchivedPlan(index) {
+            const planName = appState.savedPlans[index].name;
+            if (confirm(`¿Estás seguro de que quieres eliminar "${planName}"? Esta acción es permanente.`)) {
+                appState.savedPlans.splice(index, 1);
+                saveData();
+                renderAppLayout();
+            }
+        }
+        
+        // --- YEAR & SEMESTER VIEWS ---
+        function renderYearView(yearIndex) {
+            const contentArea = document.getElementById('content-area');
+            const activeSemester = activeSemesterForYear[yearIndex] ?? -1;
+            contentArea.innerHTML = `
+                <div class="bg-white/60 backdrop-blur-sm rounded-xl shadow-lg p-6">
+                    <div class="text-center mb-6">
+                        <div class="inline-flex rounded-lg shadow-sm" role="group">
+                            <button onclick="handleSemesterClick(${yearIndex}, 0)" type="button" class="py-2 px-6 text-lg font-medium text-gray-900 bg-white rounded-l-lg border border-gray-200 hover:bg-gray-100 hover:text-indigo-700 focus:z-10 focus:ring-2 focus:ring-indigo-700 transition ${activeSemester === 0 ? 'semester-tab-active' : ''}">Semestre 1</button>
+                            <button onclick="handleSemesterClick(${yearIndex}, 1)" type="button" class="py-2 px-6 text-lg font-medium text-gray-900 bg-white rounded-r-lg border border-gray-200 hover:bg-gray-100 hover:text-indigo-700 focus:z-10 focus:ring-2 focus:ring-indigo-700 transition ${activeSemester === 1 ? 'semester-tab-active' : ''}">Semestre 2</button>
+                        </div>
+                    </div>
+                    <div id="semester-content"></div>
+                </div>`;
+
+            if (activeSemester !== -1) renderSemesterView(yearIndex, activeSemester);
+            else document.getElementById('semester-content').innerHTML = `<p class="text-center text-gray-500 py-8">Selecciona un semestre para ver tus asignaturas.</p>`;
+        }
+
+        function handleSemesterClick(yearIndex, semesterIndex) {
+            activeSemesterForYear[yearIndex] = semesterIndex;
+            renderYearView(yearIndex);
+        }
+
+        function renderSemesterView(yearIndex, semesterIndex) {
+            const semesterContent = document.getElementById('semester-content');
+            if (!semesterContent || !appState.currentPlan) return;
+            semesterContent.innerHTML = `
+                <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+                    <h3 class="text-2xl font-bold text-gray-600">Asignaturas</h3>
+                    <div class="flex gap-2">
+                        <button onclick="openModal('calendar-modal'); updateEventLists();" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-3 rounded-lg shadow-md transition-transform transform hover:scale-105 text-sm">Agendar</button>
+                        <button onclick="openSubjectModal(null, ${yearIndex}, ${semesterIndex})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg shadow-md transition-transform transform hover:scale-105 text-sm">+ Añadir Asignatura</button>
+                    </div>
+                </div>
+                <div id="subjects-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>`;
+            renderSubjects(yearIndex, semesterIndex);
+        }
+        
+        // --- PROGRESS & SUMMARY ---
+        function renderGeneralProgressView(isReadOnly = false) {
+            const plan = isReadOnly ? appState.viewingArchived : appState.currentPlan;
+            if(!plan) return;
+            const contentArea = document.getElementById('content-area');
+            let yearButtonsHTML = Array.from({ length: plan.years }, (_, i) => 
+                `<button onclick="renderYearSummary(${i}, ${isReadOnly})" class="progress-year-btn w-full text-left bg-white p-4 rounded-lg shadow-md hover:shadow-xl hover:bg-indigo-50 transition font-semibold text-gray-700">Ver resumen del Año ${i + 1}</button>`
+            ).join('');
+            contentArea.innerHTML = `
+                <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-8 max-w-4xl mx-auto mt-4">
+                    <h2 class="text-3xl font-bold text-gray-700 mb-4 text-center">Resumen General por Año</h2>
+                    <div class="space-y-4 mb-8">${yearButtonsHTML}</div>
+                    <div id="summary-content"><p class="text-center text-gray-500 py-8">Selecciona un año para ver el resumen.</p></div>
+                </div>`;
+            if (isReadOnly) {
+                setTimeout(() => renderYearSummary(0, true), 0);
+            }
+        }
+        
+        function renderYearSummary(yearIndex, isReadOnly = false) {
+            const plan = isReadOnly ? appState.viewingArchived : appState.currentPlan;
+            if(!plan) return;
+            const summaryContent = document.getElementById('summary-content');
+            const yearData = plan.structure[yearIndex];
+            summaryContent.innerHTML = `<h3 class="text-2xl font-bold text-gray-700 text-center mb-6">Resumen del Año ${yearIndex + 1}</h3>`;
+            const summaryGrid = document.createElement('div');
+            summaryGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-8';
+            ['Semestre 1', 'Semestre 2'].forEach((semesterTitle, semesterIndex) => {
+                const semesterCol = document.createElement('div');
+                let subjects = yearData.semesters[semesterIndex].subjects;
+                let subjectsHTML = `<h4 class="text-xl font-semibold text-gray-600 mb-4 border-b-2 border-indigo-200 pb-2">${semesterTitle}</h4><div class="space-y-6">`
+                + (subjects.length === 0 ? `<div class="text-center p-6 bg-gray-50 rounded-lg"><p class="text-gray-500">Sin asignaturas.</p></div>` 
+                : subjects.map(subject => generateSubjectCard(subject, yearIndex, semesterIndex, true)).join(''))
+                + '</div>';
+                semesterCol.innerHTML = subjectsHTML;
+                summaryGrid.appendChild(semesterCol);
+            });
+            summaryContent.appendChild(summaryGrid);
+        }
+
+        // --- SUBJECTS & CARDS ---
+        function renderSubjects(yearIndex, semesterIndex) {
+            if (!appState.currentPlan) return;
+            const subjects = appState.currentPlan.structure[yearIndex].semesters[semesterIndex].subjects;
+            const container = document.getElementById('subjects-container');
+            container.innerHTML = (subjects.length === 0) 
+                ? `<div class="col-span-1 md:col-span-2 text-center p-10 bg-gray-50 rounded-lg"><p class="text-gray-500">Aún no has añadido asignaturas.</p></div>`
+                : subjects.map(subject => generateSubjectCard(subject, yearIndex, semesterIndex)).join('');
+        }
+
+        function generateSubjectCard(subject, yearIndex, semesterIndex, isSummary = false) {
+             const plan = isSummary && appState.viewingArchived ? appState.viewingArchived : appState.currentPlan;
+             if(!plan) return '';
+             const color = COLORS.find(c => c.name === subject.color) || COLORS[0];
+             const progressPercentage = (subject.blocks.filter(b => b === 2).length / (subject.blocks.length || 1)) * 100;
+             const grades = subject.grades || [];
+             const averageGrade = grades.length > 0 ? (grades.reduce((a, b) => a + b.value, 0) / grades.length).toFixed(1) : 'N/A';
+             const pendingTasks = (subject.tasks || []).filter(t => !t.completed).length;
+
+            let gradesListHTML = '';
+            if (grades.length > 0) {
+                let partialCount = 0;
+                const gradesBadges = grades.map(grade => {
+                    let label = '';
+                    if (grade.type === 'parcial') {
+                        partialCount++;
+                        label = `P${partialCount}`;
+                    } else {
+                        label = 'F';
+                    }
+                    return `<span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${getGradeColor(grade.value)} ${getGradeBgColor(grade.value)}">${label}: ${grade.value}</span>`;
+                }).join(' ');
+
+                gradesListHTML = `<div class="mt-2"><div class="flex flex-wrap gap-2 items-center">${gradesBadges}</div></div>`;
+            }
+
+             return `<div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col ${isSummary ? '' : 'transition-transform transform hover:-translate-y-1'}">
+                    <div class="${color.bg} p-4 flex items-center justify-between text-white">
+                        <div class="flex items-center space-x-3"><span class="w-8 h-8 flex items-center justify-center">${ICONS[subject.icon] || ''}</span><h2 class="text-xl font-bold">${subject.name}</h2></div>
+                        ${!isSummary ? `<div class="relative" onclick="event.stopPropagation()"><button onclick="toggleMenu('${subject.id}')" class="focus:outline-none p-1 rounded-full hover:bg-black/20"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button><div id="menu-${subject.id}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-20 py-1"><a href="#" onclick="openSubjectModal('${subject.id}', ${yearIndex}, ${semesterIndex})" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Editar</a><a href="#" onclick="deleteSubject('${subject.id}', ${yearIndex}, ${semesterIndex})" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Eliminar</a></div></div>` : ''}
+                    </div>
+                    <div class="p-5 flex-grow">
+                        <div class="flex flex-wrap gap-3 items-center">${subject.blocks.map((blockState, index) => `<button ${isSummary ? 'disabled' : `onclick="advanceBlock('${subject.id}', ${index}, ${yearIndex}, ${semesterIndex})"`} class="p-1 rounded-md ${!isSummary ? `transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 ${color.ring}` : 'cursor-default'}" title="Bloque ${index + 1}"><span class="${blockState === 2 ? color.bg + ' rounded-md' : ''} inline-block">${BOOK_ICONS[blockState]}</span></button>`).join('')}</div>
+                        <div class="mt-6">
+                            <div class="flex justify-between items-center mb-1"><span class="text-sm font-medium text-gray-600">Progreso completado</span><span class="text-sm font-bold ${color.text}">${Math.round(progressPercentage)}%</span></div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5"><div class="${color.bg} h-2.5 rounded-full" style="width: ${progressPercentage}%"></div></div>
+                        </div>
+                        <div class="mt-4"><div class="flex justify-between items-center text-sm font-medium text-gray-600"><span>Nota media:</span><span class="text-lg font-bold ${getGradeColor(averageGrade)}">${averageGrade}</span></div></div>
+                        ${gradesListHTML}
+                    </div>
+                    ${!isSummary ? `<div class="bg-gray-50 p-4 flex flex-wrap gap-2 justify-center"><button onclick="openTasksModal('${subject.id}', ${yearIndex}, ${semesterIndex})" class="relative flex-1 text-sm bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-2 px-3 rounded-lg shadow-sm transition">Tareas ${pendingTasks > 0 ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">${pendingTasks}</span>` : ''}</button><button onclick="openGradesModal('${subject.id}', ${yearIndex}, ${semesterIndex})" class="flex-1 text-sm bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-2 px-3 rounded-lg shadow-sm transition">Calificaciones</button><button onclick="openNotesModal('${subject.id}', ${yearIndex}, ${semesterIndex})" class="flex-1 text-sm bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-2 px-3 rounded-lg shadow-sm transition">Notas</button></div>` : ''}
+                </div>`;
+        }
+        
+        function getMotivationalMessage(averageGrade) {
+            if (averageGrade === 'N/A') return "Aún no hay notas. ¡Sigue estudiando y registra tus logros!";
+            const grade = parseFloat(averageGrade);
+            if (grade >= 9) return "¡Excelente trabajo! Eres un ejemplo a seguir. ¡Sigue así!"; 
+            if (grade >= 7) return "¡Muy bien! Tu esfuerzo está dando grandes frutos. ¡No te detengas!"; 
+            if (grade >= 5) return "¡Vas por buen camino! Sigue esforzándote y verás cómo mejoras."; 
+            return "¡Mucho ánimo! Cada examen es una oportunidad para aprender. ¡Tú puedes!";
+        }
+
+        function getSubject(subjectId, yearIndex, semesterIndex) { if(!appState.currentPlan) return null; return appState.currentPlan.structure[yearIndex].semesters[semesterIndex].subjects.find(s => s.id === subjectId); }
+        function getGradeColor(grade) { if (grade >= 9) return 'text-green-500'; if (grade >= 7) return 'text-emerald-500'; if (grade >= 5) return 'text-amber-500'; if (grade < 5 && grade !== 'N/A') return 'text-red-500'; return 'text-gray-500';}
+        function getGradeBgColor(grade) { if (grade >= 9) return 'bg-green-100'; if (grade >= 7) return 'bg-emerald-100'; if (grade >= 5) return 'bg-amber-100'; if (grade < 5 && grade !== 'N/A') return 'bg-red-100'; return 'bg-gray-100';}
+        function toggleMenu(subjectId) { document.querySelectorAll('[id^="menu-"]').forEach(menu => { if (menu.id !== `menu-${subjectId}`) menu.classList.add('hidden'); }); document.getElementById(`menu-${subjectId}`).classList.toggle('hidden');}
+        function advanceBlock(subjectId, blockIndex, yearIndex, semesterIndex) { const subject = getSubject(subjectId, yearIndex, semesterIndex); if (subject) { subject.blocks[blockIndex] = (subject.blocks[blockIndex] + 1) % 3; saveData(); renderSemesterView(yearIndex, semesterIndex); }}
+        function deleteSubject(subjectId, yearIndex, semesterIndex) { if (confirm('¿Estás seguro?')) { let semester = appState.currentPlan.structure[yearIndex].semesters[semesterIndex]; semester.subjects = semester.subjects.filter(s => s.id !== subjectId); saveData(); renderSemesterView(yearIndex, semesterIndex); }}
+        
+        // --- MODAL HANDLING & FORMS ---
+        function openModal(modalId) { const modal = document.getElementById(modalId); modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('-translate-y-10'); }, 10); }
+        function closeModal(modalId) { const modal = document.getElementById(modalId); modal.classList.add('opacity-0'); modal.querySelector('.modal-content').classList.add('-translate-y-10'); setTimeout(() => modal.classList.add('hidden'), 250); }
+        function closeSubjectModal() { closeModal('subject-modal'); }
+        function closeDetailsModal() { closeModal('details-modal'); }
+        
+        function openSubjectModal(subjectId = null, yearIndex, semesterIndex) {
+            document.getElementById('subject-form').reset();
+            document.getElementById('subject-id').value = '';
+            document.getElementById('subject-year-index').value = yearIndex;
+            document.getElementById('subject-semester-index').value = semesterIndex;
+            document.getElementById('color-options').innerHTML = COLORS.map(c => `<label class="cursor-pointer"><input type="radio" name="color" value="${c.name}" class="sr-only" required><div class="w-10 h-10 ${c.bg} rounded-full border-2 border-transparent ring-4 ring-transparent transition-transform transform peer-checked:scale-125 peer-checked:ring-offset-2 peer-checked:${c.ring}"></div></label>`).join('');
+            document.getElementById('icon-options').innerHTML = Object.keys(ICONS).map(k => `<label class="cursor-pointer p-2 rounded-lg flex items-center justify-center border-2 border-gray-200 ring-4 ring-transparent transition-all peer-checked:bg-indigo-200 peer-checked:ring-indigo-500 peer-checked:border-transparent"><input type="radio" name="icon" value="${k}" class="sr-only" required>${ICONS[k]}</label>`).join('');
+            if (subjectId) {
+                const subject = getSubject(subjectId, yearIndex, semesterIndex);
+                document.getElementById('subject-modal-title').innerText = 'Editar Asignatura';
+                document.getElementById('subject-id').value = subject.id;
+                document.getElementById('subject-name').value = subject.name;
+                document.getElementById('subject-blocks').value = subject.blocks.length;
+                document.getElementById('subject-blocks').disabled = true;
+                document.querySelector(`input[name="color"][value="${subject.color}"]`).checked = true;
+                document.querySelector(`input[name="icon"][value="${subject.icon}"]`).checked = true;
+            } else {
+                document.getElementById('subject-modal-title').innerText = 'Añadir Nueva Asignatura';
+                document.getElementById('subject-blocks').disabled = false;
+            }
+            openModal('subject-modal');
+        }
+
+        function handleSubjectSubmit(event) {
+            event.preventDefault();
+            const id = document.getElementById('subject-id').value;
+            const yearIndex = parseInt(document.getElementById('subject-year-index').value);
+            const semesterIndex = parseInt(document.getElementById('subject-semester-index').value);
+            const name = document.getElementById('subject-name').value;
+            const blocksCount = parseInt(document.getElementById('subject-blocks').value);
+            const color = document.querySelector('input[name="color"]:checked').value;
+            const icon = document.querySelector('input[name="icon"]:checked').value;
+            let semester = appState.currentPlan.structure[yearIndex].semesters[semesterIndex];
+            if(!semester.subjects) semester.subjects = [];
+            if (id) {
+                const subject = semester.subjects.find(s => s.id === id);
+                subject.name = name; subject.color = color; subject.icon = icon;
+            } else {
+                semester.subjects.push({ id: 'subj_' + Date.now(), name, blocks: Array(blocksCount).fill(0), color, icon, tasks: [], grades: [], notes: "" });
+            }
+            saveData();
+            renderSemesterView(yearIndex, semesterIndex);
+            closeSubjectModal();
+        }
+        
+        function openTasksModal(subjectId, yearIndex, semesterIndex) {
+            const subject = getSubject(subjectId, yearIndex, semesterIndex);
+            if (!subject) return;
+            document.getElementById('details-modal-title').innerText = `Tareas de ${subject.name}`;
+            const content = document.getElementById('details-modal-content');
+            const renderTasks = () => {
+                let tasksHTML = '<div class="space-y-3">';
+                if (!subject.tasks) subject.tasks = [];
+                if (subject.tasks.length > 0) {
+                     subject.tasks.forEach(task => { tasksHTML += `<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><div class="flex items-center"><input type="checkbox" id="task-${task.id}" ${task.completed ? 'checked' : ''} onchange="toggleTask('${subject.id}', '${task.id}', ${yearIndex}, ${semesterIndex})" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"><label for="task-${task.id}" class="ml-3 text-gray-700 ${task.completed ? 'line-through text-gray-400' : ''}">${task.text}</label></div><button onclick="deleteTask('${subject.id}', '${task.id}', ${yearIndex}, ${semesterIndex})" class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button></div>`; });
+                } else { tasksHTML += `<p class="text-center text-gray-500 py-4">No hay tareas pendientes.</p>` }
+                tasksHTML += `</div><form id="task-form" class="mt-4 flex gap-2"><input type="text" id="new-task-input" placeholder="Añadir nueva tarea..." class="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Añadir</button></form>`;
+                content.innerHTML = tasksHTML;
+                document.getElementById('task-form').addEventListener('submit', (e) => addTask(e, subject.id, yearIndex, semesterIndex));
+            };
+            renderTasks();
+            window.toggleTask = (subjectId, taskId, yI, sI) => { const s = getSubject(subjectId, yI, sI); const task = s.tasks.find(t => t.id === taskId); if(task) task.completed = !task.completed; saveData(); renderTasks(); renderSemesterView(yI, sI); };
+            window.deleteTask = (subjectId, taskId, yI, sI) => { const s = getSubject(subjectId, yI, sI); s.tasks = s.tasks.filter(t => t.id !== taskId); saveData(); renderTasks(); renderSemesterView(yI, sI); };
+            window.addTask = (event, subjectId, yI, sI) => { event.preventDefault(); const input = document.getElementById('new-task-input'); if(input.value.trim()){ const s = getSubject(subjectId, yI, sI); s.tasks.push({ id: 'task_' + Date.now(), text: input.value.trim(), completed: false }); saveData(); renderTasks(); renderSemesterView(yI, sI); } };
+            openModal('details-modal');
+        }
+
+        function openGradesModal(subjectId, yearIndex, semesterIndex) {
+            const subject = getSubject(subjectId, yearIndex, semesterIndex);
+            if (!subject) return;
+            if(!subject.grades) subject.grades = [];
+            document.getElementById('details-modal-title').innerText = `Calificaciones de ${subject.name}`;
+            const content = document.getElementById('details-modal-content');
+            
+            const renderGrades = () => {
+                const averageGrade = subject.grades.length > 0 ? (subject.grades.reduce((a, b) => a + b.value, 0) / subject.grades.length).toFixed(1) : 'N/A';
+                let gradesHTML = `<div class="text-center p-4 mb-4 bg-indigo-50 rounded-lg"><p class="text-sm text-gray-600">Mensaje motivacional</p><p class="font-medium text-indigo-700 italic">"${getMotivationalMessage(averageGrade)}"</p></div><div class="space-y-2">`;
+                
+                let partialCount = 0;
+                if (subject.grades.length > 0) {
+                     subject.grades.forEach((grade, index) => {
+                        let label = '';
+                        if (grade.type === 'parcial') {
+                            partialCount++;
+                            label = `Parcial ${partialCount}:`;
+                        } else {
+                            label = `Final:`;
+                        }
+                        gradesHTML += `<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"><span>${label}</span><span class="font-bold text-lg ${getGradeColor(grade.value)}">${grade.value}</span></div>`;
+                     });
+                } else {
+                     gradesHTML += `<p class="text-center text-gray-500 py-4">No has registrado ninguna calificación.</p>`;
+                }
+
+                gradesHTML += `</div><form id="grade-form" class="mt-4 grid grid-cols-3 gap-2 items-center">
+                    <select id="new-grade-type" class="col-span-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="parcial">Parcial</option>
+                        <option value="final">Final</option>
+                    </select>
+                    <input type="number" step="0.1" min="0" max="10" id="new-grade-input" placeholder="Nota (0-10)" class="col-span-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    <button type="submit" class="col-span-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Añadir</button>
+                </form>`;
+                content.innerHTML = gradesHTML;
+
+                document.getElementById('grade-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('new-grade-input');
+                    const typeInput = document.getElementById('new-grade-type');
+                    const gradeValue = parseFloat(input.value);
+                    const gradeType = typeInput.value;
+                    if (!isNaN(gradeValue) && gradeValue >= 0 && gradeValue <= 10) {
+                        subject.grades.push({type: gradeType, value: gradeValue});
+                        saveData();
+                        renderGrades(); // Re-render only modal content
+                        renderSubjects(yearIndex, semesterIndex); // Update subject card in background
+                    }
+                });
+            };
+
+            renderGrades();
+            openModal('details-modal');
+        }
+
+        function openNotesModal(subjectId, yearIndex, semesterIndex) {
+            const subject = getSubject(subjectId, yearIndex, semesterIndex);
+            if (!subject) return;
+            const modal = document.getElementById('notes-modal');
+            const textarea = document.getElementById('notes-textarea');
+            document.getElementById('notes-modal-title').innerText = `Notas de ${subject.name}`;
+            textarea.value = subject.notes || "";
+            textarea.dataset.subjectId = subjectId;
+            textarea.dataset.yearIndex = yearIndex;
+            textarea.dataset.semesterIndex = semesterIndex;
+            openModal('notes-modal');
+        }
+
+        function closeNotesModal() {
+            const textarea = document.getElementById('notes-textarea');
+            const { subjectId, yearIndex, semesterIndex } = textarea.dataset;
+            const subject = getSubject(subjectId, parseInt(yearIndex), parseInt(semesterIndex));
+            if(subject) {
+                subject.notes = textarea.value;
+                saveData();
+            }
+            closeModal('notes-modal');
+        }
+        
+        // --- CALENDAR & EVENTS ---
+        function toggleCalendar() {
+            document.getElementById('calendar-container').classList.toggle('open');
+            document.getElementById('calendar-overlay').classList.toggle('hidden');
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const monthYear = document.getElementById('month-year');
+            if(!grid || !monthYear) return;
+
+            grid.innerHTML = '';
+            monthYear.innerText = calendarDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+            
+            const month = calendarDate.getMonth();
+            const year = calendarDate.getFullYear();
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const dayOffset = (firstDay === 0) ? 6 : firstDay - 1;
+
+            for(let i=0; i < dayOffset; i++) { grid.innerHTML += `<div></div>`; }
+            
+            const plan = appState.viewingArchived || appState.currentPlan;
+            const eventsForMonth = (plan && plan.events) ? plan.events.filter(e => new Date(e.date).getMonth() === month && new Date(e.date).getFullYear() === year) : [];
+
+            for(let day=1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.innerText = day;
+                dayEl.classList.add('p-1', 'rounded-full', 'cursor-pointer', 'hover:bg-gray-200', 'day');
+                const eventsOnThisDay = eventsForMonth.filter(e => new Date(e.date).getDate() === day);
+                if (eventsOnThisDay.length > 0) {
+                    dayEl.classList.add('has-event');
+                    dayEl.addEventListener('mouseenter', (e) => showCalendarTooltip(e, eventsOnThisDay));
+                    dayEl.addEventListener('mouseleave', hideCalendarTooltip);
+                }
+                grid.appendChild(dayEl);
+            }
+        }
+        
+        function showCalendarTooltip(event, events) {
+            const tooltip = document.getElementById('calendar-tooltip');
+            tooltip.innerHTML = events.map(ev => `<strong>${ev.title}</strong> (${ev.type})`).join('<br>');
+            tooltip.classList.remove('hidden');
+            tooltip.style.left = `${event.pageX - tooltip.offsetWidth / 2}px`;
+            tooltip.style.top = `${event.pageY - tooltip.offsetHeight - 10}px`;
+        }
+
+        function hideCalendarTooltip() {
+            document.getElementById('calendar-tooltip').classList.add('hidden');
+        }
+
+        function handleEventSubmit(event) {
+            event.preventDefault();
+            const plan = appState.currentPlan;
+            if(!plan) return;
+            if(!plan.events) plan.events = [];
+            
+            plan.events.push({
+                id: 'evt_' + Date.now(),
+                title: document.getElementById('event-title').value,
+                date: document.getElementById('event-date').value,
+                type: document.getElementById('event-type').value,
+                notified3day: false,
+                notified1day: false
+            });
+            saveData();
+            renderCalendar();
+            updateEventLists();
+            document.getElementById('event-form').reset();
+        }
+
+        function updateEventLists() {
+            const plan = appState.currentPlan;
+            if(!plan || !plan.events) return;
+            
+            const upcomingEl = document.getElementById('upcoming-events');
+            const pastEl = document.getElementById('past-events');
+            if(!upcomingEl || !pastEl) return;
+            
+            const now = new Date().setHours(0,0,0,0);
+            plan.events.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            const upcoming = plan.events.filter(e => new Date(e.date) >= now);
+            const past = plan.events.filter(e => new Date(e.date) < now);
+
+            upcomingEl.innerHTML = upcoming.length ? upcoming.map(e => `<div class="text-sm p-1 bg-gray-100 rounded">${e.title} - ${new Date(e.date).toLocaleDateString()}</div>`).join('') : '<p class="text-sm text-gray-400">No hay eventos próximos.</p>';
+            pastEl.innerHTML = past.length ? past.map(e => `<div class="text-sm p-1 bg-gray-100 rounded text-gray-500">${e.title} - ${new Date(e.date).toLocaleDateString()}</div>`).join('') : '<p class="text-sm text-gray-400">No hay eventos pasados.</p>';
+        }
+
+        function checkEventNotifications() {
+            const plan = appState.currentPlan;
+            if(!plan || !plan.events) return;
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            plan.events.forEach(event => {
+                const eventDate = new Date(new Date(event.date).getFullYear(), new Date(event.date).getMonth(), new Date(event.date).getDate());
+                const diffTime = eventDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if(diffDays === 3 && !event.notified3day) {
+                    showToast(`Recordatorio: '${event.title}' en 3 días.`);
+                    event.notified3day = true;
+                }
+                if(diffDays === 1 && !event.notified1day) {
+                    showToast(`¡Mañana! Evento: '${event.title}'.`);
+                    event.notified1day = true;
+                }
+            });
+            saveData();
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast bg-indigo-600 text-white p-4 rounded-lg shadow-lg';
+            toast.innerText = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+        
+        function showRandomQuote() { 
+            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            document.getElementById('quote-text').innerText = `"${quote.text}"`;
+            document.getElementById('quote-author').innerText = `- ${quote.author}`;
+            openModal('quote-modal'); 
+        }
+
+        // --- LOCAL STORAGE ---
+        function saveData() { localStorage.setItem('academicPlannerState', JSON.stringify(appState)); }
+        function loadData() { 
+            const savedData = localStorage.getItem('academicPlannerState'); 
+            if (savedData) {
+                 appState = JSON.parse(savedData);
+            } 
+            else { appState = { currentPlan: null, savedPlans: [], viewingArchived: null }; }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => { 
+            loadData(); 
+            // Always start at the main menu unless a plan is active and not archived
+            if (!appState.currentPlan || appState.viewingArchived) {
+                activeTab = 'menu';
+            }
+            renderAppLayout();
+            
+            document.getElementById('prev-month').addEventListener('click', () => {
+                calendarDate.setMonth(calendarDate.getMonth() - 1);
+                renderCalendar();
+            });
+            document.getElementById('next-month').addEventListener('click', () => {
+                calendarDate.setMonth(calendarDate.getMonth() + 1);
+                renderCalendar();
+            });
+        });
+        document.addEventListener('click', (event) => { document.querySelectorAll('[id^="menu-"]').forEach(menu => { if (!menu.previousElementSibling.contains(event.target)) { menu.classList.add('hidden'); } }); });
+
+    </script>
+</body>
+</html>
+
